@@ -12,25 +12,24 @@ The system is decoupled into three specialized workflows (available in the [`/wo
 
 ### 1. Batch Orchestrator (`01_Batch_Orchestrator.json`)
 Handles state control and paginated extraction for legacy inbox cleanups (2,000+ emails).
-* Fetches unclassified emails from the Inbox in controlled batches (`Get many folder messages`).
-* Evaluates batch availability (`If` node) to determine loop termination.
-* Invokes the Worker sub-workflow (`Call My Sub-workflow`) synchronously, waiting for the `{ continuar: true }` completion signal before fetching the next page.
+* Fetches unclassified emails from the Inbox in controlled batches of 50 (`Get many folder messages`).
+* Evaluates batch availability (`If` node checking `$input.all().length != 0`) to determine loop termination.
+* Invokes the Worker sub-workflow (`Call My Sub-workflow`) synchronously (`waitForSubWorkflow: true`), waiting for the `{ continuar: true }` completion signal before fetching the next page.
 
 ![Batch Orchestrator Workflow](./assets/batch_orchestrator.png)
 
 ### 2. Unified Dual-Ingestion Worker (`02_Unified_Classifier_Worker.json`)
 The core stateless processing engine, capable of handling both bulk batches and single real-time events.
-
 * **Dual Triggers:** Accepts synchronous invocations from the Batch Orchestrator (`Start`) and asynchronous real-time events (`Microsoft Outlook Trigger`).
-* **Centralized Normalization (`Formateo`):** Extracts essential metadata (`id`, `subject`, `sender`, `bodyPreview`) into a clean JSON structure.
-* **Dynamic Taxonomy Resolution (`Get many folders` ➔ `Crear Diccionario`):** Queries Microsoft Graph at runtime to map human-readable folder names to Graph Folder IDs.
-* **Batch LLM Inference (`Message a model`):** Sends a single structured prompt to Google Gemini to classify the entire batch in one pass, followed by response parsing (`Code in JavaScript1`).
-* **Controlled Routing Loop (`Loop Over Items`):** Iterates through classified items, moving each email (`Move a message`) with a 1-second rate-limiting delay (`1 Segundo`), item-level error isolation (`Read/Write Files from Disk`), and final completion signaling (`Code in JavaScript2`).
+* **Centralized Normalization & Aggregation (`Empaquetar Lote`):** Extracts essential metadata (`id`, `remitente`, `asunto`, `snippet`) with fallback parsing and consolidates the entire batch into a single JSON item (`datos_analisis`).
+* **Dynamic Taxonomy Resolution (`Get many folders` ➔ `Crear Diccionario`):** Queries Microsoft Graph at runtime to map uppercase folder names to Graph Folder IDs.
+* **Batch LLM Inference (`Message a model`):** Sends a single structured prompt to Google Gemini (`jsonOutput: true`) to classify the entire batch in one pass, followed by folder ID mapping (`Cruzar IDs y carpetas`).
+* **Controlled Routing Loop (`Loop Over Items`):** Iterates through classified items one by one (`batchSize: 1`), moving each email (`Move a message`) with a 1-second rate-limiting delay (`1 Segundo`), item-level error isolation (`Read/Write Files from Disk`), and final completion signaling (`Devolver OK`).
 
 ![Unified Worker Workflow](./assets/unified_worker.png)
 
 ### 3. Global Catastrophic Error Handler (`00_Global_Error_Handler.json`)
-An out-of-band safety net triggered via n8n's `Error Trigger` whenever an unhandled workflow-level crash occurs, writing execution metadata directly to local disk (`/tmp/n8n_errores_catastroficos.txt`).
+An out-of-band safety net triggered via n8n's `Error Trigger` whenever an unhandled workflow-level crash occurs, writing execution metadata directly to local disk (`/tmp/n8n_errores_graves.txt`).
 
 ![Global Error Handler Workflow](./assets/error_handler.png)
 
@@ -54,7 +53,7 @@ Every structural choice in this pipeline was made to solve specific runtime, mem
 
 ### ADR 04: Dual-Ingestion Consolidation (DRY Principle)
 * **The Problem:** Maintaining a separate third workflow purely to listen to incoming emails and forward them to the Worker introduced redundant formatting nodes and extra maintenance overhead.
-* **The Decision:** Because both `Get many folder messages` (Batch) and `Microsoft Outlook Trigger` (Real-Time) return the exact same underlying Microsoft Graph `Message` JSON schema, the `Formateo` node was placed at the entry point of the Worker sub-workflow, fed by both triggers. Whether the input is a batch from the Orchestrator or a single real-time email (`1 item`), the exact same pipeline and `Loop Over Items` logic processes it seamlessly (iterating $N$ times for batches, or $1$ time for real-time emails).
+* **The Decision:** Because both `Get many folder messages` (Batch) and `Microsoft Outlook Trigger` (Real-Time) return the underlying Microsoft Graph `Message` JSON schema, the `Empaquetar Lote` normalization node was placed at the entry point of the Worker sub-workflow, fed by both triggers. Whether the input is a 50-email batch from the Orchestrator or a single real-time email (`1 item`), the exact same pipeline and `Loop Over Items` logic processes it seamlessly (iterating $N$ times for batches, or $1$ time for real-time emails).
 
 ---
 
@@ -76,11 +75,11 @@ A core focus of this architecture is handling partial and total failures gracefu
 ### Tier 3: Catastrophic Out-of-Band Alerting (Avoiding Circular Dependencies)
 * **Scope:** Workflow-level crashes (e.g., expired/revoked Microsoft OAuth2 tokens, exhausted Gemini retries).
 * **Why we rejected Email Alerting:** Using an Outlook node inside the `Error Workflow` to notify the administrator creates a **fatal circular dependency**—if the workflow crashed because the Microsoft OAuth token expired, the error handler will also fail to send the alert email, dying silently.
-* **The Solution:** Because n8n suppresses the global `Error Trigger` when errors are caught locally via `Continue On Fail`, the `00_Global_Error_Handler` only fires on true unrecovered catastrophes, logging the failure out-of-band to `/tmp/n8n_errores_catastroficos.txt` on the host container.
+* **The Solution:** Because n8n suppresses the global `Error Trigger` when errors are caught locally via `Continue On Fail`, the `00_Global_Error_Handler` only fires on true unrecovered catastrophes, logging the failure out-of-band to `/tmp/n8n_errores_graves.txt` on the host container.
 
 ## 🛠️ Tech Stack & Environment
-* **Infrastructure:** Self-hosted Docker container on Ubuntu Server
+* **Infrastructure:** Self-hosted Docker container on Ubuntu Server Linux
 * **Orchestration Engine:** n8n
-* **AI Model:** Google Gemini (`gemini-1.5-flash`)
+* **AI Model:** Google Gemini (`gemini-flash-lite-latest`)
 * **API Integration:** Microsoft Graph API (OAuth2 - `Mail.ReadWrite`, `MailboxSettings.Read`)
 * **Scripting:** JavaScript (ES6)
