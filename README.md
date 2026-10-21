@@ -14,12 +14,13 @@ The system is decoupled into three specialized workflows (available in the [`/wo
 Handles state control and paginated extraction for legacy inbox cleanups (2,000+ emails).
 * Fetches unclassified emails from the Inbox in controlled batches (`Get many folder messages`).
 * Evaluates batch availability (`If` node) to determine loop termination.
-* Aggregates the batch items into a single payload (`Code in JavaScript`) and invokes the Worker sub-workflow (`Call My Sub-workflow`) synchronously, waiting for the `{ continuar: true }` completion signal before fetching the next page.
+* Invokes the Worker sub-workflow (`Call My Sub-workflow`) synchronously, waiting for the `{ continuar: true }` completion signal before fetching the next page.
 
 ![Batch Orchestrator Workflow](./assets/batch_orchestrator.png)
 
 ### 2. Unified Dual-Ingestion Worker (`02_Unified_Classifier_Worker.json`)
 The core stateless processing engine, capable of handling both bulk batches and single real-time events.
+
 * **Dual Triggers:** Accepts synchronous invocations from the Batch Orchestrator (`Start`) and asynchronous real-time events (`Microsoft Outlook Trigger`).
 * **Centralized Normalization (`Formateo`):** Extracts essential metadata (`id`, `subject`, `sender`, `bodyPreview`) into a clean JSON structure.
 * **Dynamic Taxonomy Resolution (`Get many folders` ➔ `Crear Diccionario`):** Queries Microsoft Graph at runtime to map human-readable folder names to Graph Folder IDs.
@@ -78,7 +79,7 @@ A core focus of this architecture is handling partial and total failures gracefu
 * **The Solution:** Because n8n suppresses the global `Error Trigger` when errors are caught locally via `Continue On Fail`, the `00_Global_Error_Handler` only fires on true unrecovered catastrophes, logging the failure out-of-band to `/tmp/n8n_errores_catastroficos.txt` on the host container.
 
 ## 🛠️ Tech Stack & Environment
-* **Infrastructure:** Self-hosted Docker container on Debian Linux
+* **Infrastructure:** Self-hosted Docker container on Ubuntu Server
 * **Orchestration Engine:** n8n
 * **AI Model:** Google Gemini (`gemini-1.5-flash`)
 * **API Integration:** Microsoft Graph API (OAuth2 - `Mail.ReadWrite`, `MailboxSettings.Read`)
