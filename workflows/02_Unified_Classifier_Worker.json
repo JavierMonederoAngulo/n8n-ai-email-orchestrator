@@ -1,0 +1,405 @@
+{
+  "name": "02-Clasificador_Tiempo_Real",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "move",
+        "messageId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "={{ $json.carpeta_id }}",
+          "mode": "id"
+        }
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        1728,
+        368
+      ],
+      "id": "e634af43-3cb3-4458-abcc-545c785566ed",
+      "name": "Move a message",
+      "webhookId": "38e982a4-e572-4b92-a590-26bbf2e97e17",
+      "executeOnce": false,
+      "alwaysOutputData": false,
+      "retryOnFail": true,
+      "notesInFlow": false,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "nZkMRXGgrnRXzxC0",
+          "name": "javi outlook"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1952,
+        448
+      ],
+      "id": "c50dd0f4-4c18-4e2b-bf3d-4cac8130cee5",
+      "name": "1 Segundo",
+      "webhookId": "e784de96-37ac-4b55-8c1b-bca81054bb2d"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-flash-lite-latest",
+          "mode": "list",
+          "cachedResultName": "models/gemini-flash-lite-latest"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "Eres un enrutador de datos JSON. Tu única función es asignar cada correo a su categoría. No devuelvas markdown, saludos ni explicaciones.\n\nCategorías permitidas y reglas:\n- UNIVERSIDAD: Dominios académicos (.edu, .es, upm.es), profesores, campus virtual.\n- COMERCIALES: Boletines, publicidad, catálogos, ofertas.\n- PERSONAL: Personas físicas reales o comunicaciones humanas.\n- PEDIDOS: Tracking y estados de envío (Amazon, AliExpress).\n- IMPORTANTES: Alertas de seguridad, inicios de sesión, contraseñas.\n- COMPRAS: Facturas y recibos de pagos realizados.\n- SUSCRIPCIONES: Renovaciones recurrentes (Netflix, AWS, gimnasio).\n- BANCOS: Entidades financieras, transferencias, tarjetas.\n- MICROSOFT: Cuentas Outlook, Azure, OneDrive, seguridad del sistema.\n- OTROS: Solo si no encaja claramente en las anteriores.\n\nFormato de salida obligatorio (Array de objetos JSON):\n[{\"id\": \"id_del_correo_aqui\", \"carpeta\": \"NOMBRE_EXACTO\"}]",
+              "role": "model"
+            },
+            {
+              "content": "=Clasifica este lote:\n{{ JSON.stringify($node[\"Empaquetar Lote\"].json.datos_analisis) }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        928,
+        448
+      ],
+      "id": "799e9f78-7c02-423c-864d-22b0b5c10449",
+      "name": "Message a model",
+      "retryOnFail": true,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Rtv9Ry4GYU5NWSNh",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "batchSize": "=1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1504,
+        448
+      ],
+      "id": "3197a0e9-9552-4ade-bb5d-ae1121fa4764",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "f37dc990-7660-4691-8a0b-4915307c8736",
+      "typeVersion": 1.1,
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        32,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "folder",
+        "operation": "getAll",
+        "returnAll": true,
+        "filters": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        480,
+        448
+      ],
+      "id": "012e7e32-dcc6-4568-bb66-bd076e893cfd",
+      "name": "Get many folders",
+      "webhookId": "388ef552-a143-47c5-a0bf-34bba45c0206",
+      "retryOnFail": true,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "nZkMRXGgrnRXzxC0",
+          "name": "javi outlook"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let mapaCarpetas = {};\n\n// Leemos las carpetas que ha bajado Outlook\nfor (let item of $input.all()) {\n    if (item.json.displayName) {\n        let nombreCarpeta = item.json.displayName.toUpperCase();\n        mapaCarpetas[nombreCarpeta] = item.json.id;\n    }\n}\n\n// Devolvemos el diccionario empaquetado para que el siguiente nodo lo pueda leer\nreturn [{ json: { mapa: mapaCarpetas } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        704,
+        448
+      ],
+      "id": "4af340e6-9e12-4b65-8a69-e5742f56bdf8",
+      "name": "Crear Diccionario"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "/tmp/n8n_errores_correos.txt",
+        "dataPropertyName": "=[{{ $now }}] ERROR MOVIENDO CORREO: Error: {{ $json.error.message }} Carpeta Destino ID: {{ $('Cruzar IDs y carpetas').item.json.carpeta_id }} ----------------------------------------",
+        "options": {
+          "append": true
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        1952,
+        640
+      ],
+      "id": "cb24f510-f7b8-4c95-8c34-081905401531",
+      "name": "Read/Write Files from Disk"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftOutlookTrigger",
+      "typeVersion": 1,
+      "position": [
+        16,
+        240
+      ],
+      "id": "ff275e9a-3666-44c2-8970-c9b53c024864",
+      "name": "Microsoft Outlook Trigger",
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "nZkMRXGgrnRXzxC0",
+          "name": "javi outlook"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Llamamos directamente al diccionario usando el nombre del nodo que lo creó\nconst mapaCarpetas = $('Crear Diccionario').first().json.mapa;\n\n// 2. Leemos la respuesta de la IA\nlet textoIA = $input.first().json.content.parts[0].text;\nlet correosClasificados = JSON.parse(textoIA);\n\n// 3. Traducimos los nombres a IDs\nfor (let correo of correosClasificados) {\n  correo.carpeta_id = mapaCarpetas[correo.carpeta] || mapaCarpetas[\"BANDEJA DE ENTRADA\"] || mapaCarpetas[\"INBOX\"]; \n}\n\nreturn correosClasificados;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        448
+      ],
+      "id": "3b16f737-929c-4837-b847-86d9848bc15c",
+      "name": "Cruzar IDs y carpetas"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { continuar: true } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1728,
+        176
+      ],
+      "id": "d4fa8541-60e3-43f0-bb20-595a29828830",
+      "name": "Devolver OK"
+    },
+    {
+      "parameters": {
+        "jsCode": "let lote_limpio = [];\nlet items = $input.all();\n\nfor (let item of items) {\n    let correo = item.json;\n    let correo_id = correo.id;\n    \n    // Extracción ultra-robusta del remitente\n    let remitente = \"Desconocido\";\n    \n    if (typeof correo.sender === 'string') {\n        // Por si n8n lo ha simplificado directamente a texto\n        remitente = correo.sender;\n    } else if (correo.sender && correo.sender.emailAddress && correo.sender.emailAddress.address) {\n        // Estructura oficial de Microsoft Graph API\n        remitente = correo.sender.emailAddress.address;\n    } else if (correo.from && correo.from.emailAddress && correo.from.emailAddress.address) {\n        // Alternativa en Graph API\n        remitente = correo.from.emailAddress.address;\n    } else if (correo.from && typeof correo.from === 'string') {\n        remitente = correo.from;\n    } else if (correo.senderAddress) {\n        // Otra posible simplificación\n        remitente = correo.senderAddress;\n    }\n    \n    // Extracción del asunto\n    let asunto = correo.subject || \"Sin asunto\";\n    \n    // Extracción del snippet\n    let snippet = correo.bodyPreview || \"\";\n    if (!snippet && correo.body && correo.body.content) {\n        let cuerpo = correo.body.content.trim();\n        snippet = cuerpo.length > 150 ? cuerpo.substring(0, 150) + \"...\" : cuerpo;\n    }\n    \n    // Solo añadimos si hay un ID válido\n    if (correo_id) {\n        lote_limpio.push({\n            id: correo_id,\n            remitente: remitente,\n            asunto: asunto,\n            snippet: snippet\n        });\n    }\n}\n\n// Devolvemos todo agrupado en un solo ítem\nreturn [{\n    json: {\n        total_correos: lote_limpio.length,\n        datos_analisis: lote_limpio\n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        448
+      ],
+      "id": "00f59ec6-57c6-4455-b74b-097e7e58f883",
+      "name": "Empaquetar Lote"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Cruzar IDs y carpetas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Devolver OK",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Move a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move a message": {
+      "main": [
+        [
+          {
+            "node": "1 Segundo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1 Segundo": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Empaquetar Lote",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many folders": {
+      "main": [
+        [
+          {
+            "node": "Crear Diccionario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Diccionario": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Microsoft Outlook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Empaquetar Lote",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cruzar IDs y carpetas": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Devolver OK": {
+      "main": [
+        []
+      ]
+    },
+    "Empaquetar Lote": {
+      "main": [
+        [
+          {
+            "node": "Get many folders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "AAScrEmo5Jk7ARU0",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "7bb9a81b-182a-4bef-bba1-e33e0ff0e628",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "13c90dc9803a3357e4e25e8626d2dd5b7ab97f18aa8636d337f8b36930514275"
+  },
+  "nodeGroups": [],
+  "id": "WHCuNOWGdKWmtJJ4",
+  "tags": []
+}

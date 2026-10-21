@@ -1,0 +1,178 @@
+{
+  "name": "01_historical_cleanup",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -192,
+        448
+      ],
+      "id": "4ad3682b-13af-44a9-a756-b600fffaf814",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "33820931-f984-450b-abf1-ee9b9853f1cf",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        256,
+        368
+      ],
+      "id": "c7118a93-4c89-47e7-8f36-568014967cc9",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "resource": "folderMessage",
+        "folderId": {
+          "__rl": true,
+          "value": "AQMkADAwATYwMAItZjM4Ny0wODAxLTAwAi0wMAoALgAAA3KwKl1JGK5NrfwKKpWLycQBAAaE3Yoy_AZOsmzoKN2q_BEAAAIBDAAAAA==",
+          "mode": "list",
+          "cachedResultName": "Bandeja de entrada",
+          "cachedResultUrl": "https://outlook.office365.com/mail/AQMkADAwATYwMAItZjM4Ny0wODAxLTAwAi0wMAoALgAAA3KwKl1JGK5NrfwKKpWLycQBAAaE3Yoy_AZOsmzoKN2q_BEAAAIBDAAAAA%3D%3D"
+        },
+        "limit": 50,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        32,
+        448
+      ],
+      "id": "ffbf7b72-8e64-4885-82da-d768b453827d",
+      "name": "Get many folder messages",
+      "webhookId": "a16cd4d7-6ee4-4da5-85ac-227f6db6aaca",
+      "retryOnFail": true,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "microsoftOutlookOAuth2Api": {
+          "id": "nZkMRXGgrnRXzxC0",
+          "name": "javi outlook"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "WHCuNOWGdKWmtJJ4",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/WHCuNOWGdKWmtJJ4",
+          "cachedResultName": "My Sub-workflow"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        704,
+        448
+      ],
+      "name": "Call My Sub-workflow",
+      "id": "032ed3ae-3554-4966-90ca-dc5ec116b78b",
+      "alwaysOutputData": false,
+      "retryOnFail": false,
+      "waitBetweenTries": 3,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get many folder messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Call My Sub-workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many folder messages": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call My Sub-workflow": {
+      "main": [
+        [
+          {
+            "node": "Get many folder messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "AAScrEmo5Jk7ARU0",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "c786083b-b99c-43f3-abd5-d2aed8c1df1b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "13c90dc9803a3357e4e25e8626d2dd5b7ab97f18aa8636d337f8b36930514275"
+  },
+  "nodeGroups": [],
+  "id": "c0qlX3JCzReFt4bp",
+  "tags": []
+}

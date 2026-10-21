@@ -1,0 +1,59 @@
+{
+  "name": "00_Manejador_Errores",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "6a31eefa-b55a-498d-bb53-df21885a0dc4",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "/tmp/n8n_errores_graves.txt",
+        "options": {
+          "append": false
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "0f62b30b-a353-4969-947c-54614cf6d820",
+      "name": "Read/Write Files from Disk"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "ab108c26-fc01-4683-88c0-144f27a05697",
+  "meta": {
+    "instanceId": "13c90dc9803a3357e4e25e8626d2dd5b7ab97f18aa8636d337f8b36930514275"
+  },
+  "nodeGroups": [],
+  "id": "AAScrEmo5Jk7ARU0",
+  "tags": []
+}
